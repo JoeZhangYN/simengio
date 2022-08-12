@@ -1,0 +1,14 @@
+[package]
+name = "simengio"
+version = "0.1.0"
+author = ["JoeZhangYn"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+enigo="*"
+
+[lib]
+name = "simengio" #生成dll的文件名
+crate-type = ["dylib"]
