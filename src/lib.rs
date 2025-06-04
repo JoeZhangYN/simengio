@@ -4,6 +4,146 @@ use enigo::{
     Button, Mouse,
     {Coordinate::Abs, Coordinate::Rel},
 };
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+/// 根据传入参数创建按键后弹起或不弹起对象
+fn build_enigo(release_keys: bool) -> Enigo {
+    let mut settings = Settings::default();
+    settings.release_keys_when_dropped = release_keys;
+    Enigo::new(&settings).expect("failed to create Enigo")
+}
+
+/// 按键后弹起对象
+static ENIGO_RELEASE_ON_DROP: Lazy<Mutex<Enigo>> = Lazy::new(|| {
+    Mutex::new(build_enigo(true))
+});
+
+/// 按键后不弹起对象
+static ENIGO_HOLD_KEYS: Lazy<Mutex<Enigo>> = Lazy::new(|| {
+    Mutex::new(build_enigo(false))
+});
+
+#[no_mangle]
+pub extern "C" fn KeyPress(key: KeysE) {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.key(map_key(key), Click).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn KeyDown(key: KeysE) {
+    let mut enigo = ENIGO_HOLD_KEYS
+        .lock()
+        .expect("ENIGO_HOLD_KEYS poisoned");
+    enigo.key(map_key(key), Press).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn KeyUp(key: KeysE) {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.key(map_key(key), Release).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn KeyPressWhile(key1: KeysE, key2: KeysE) {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    let ke2 = map_key(key2);
+    enigo.key(ke2, Press).unwrap();
+    enigo.key(map_key(key1), Click).unwrap();
+    enigo.key(ke2, Release).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn KeyPressWhileTwo(key1: KeysE, key2: KeysE, key3: KeysE) {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    let ke2 = map_key(key2);
+    let ke3 = map_key(key3);
+    enigo.key(ke3, Press).unwrap();
+    enigo.key(ke2, Press).unwrap();
+    enigo.key(map_key(key1), Click).unwrap();
+    enigo.key(ke3, Release).unwrap();
+    enigo.key(ke2, Release).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn KeyPressAlt(key1: KeysE) {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.key(Key::Alt, Press).unwrap();
+    enigo.key(map_key(key1), Click).unwrap();
+    enigo.key(Key::Alt, Release).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseMove(x: i32, y: i32, coord_type: i32) {
+    let coordinate = match coord_type {
+        0 => Abs,
+        1 => Rel,
+        _ => panic!("Invalid coordinate type. Use 0 for Abs and 1 for Rel."),
+    };
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.move_mouse(x, y, coordinate).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseLeftClick() {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.button(Button::Left, Click).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseLeftDown() {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.button(Button::Left, Press).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseLeftUp() {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.button(Button::Left, Release).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseRightClick() {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.button(Button::Right, Click).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseRightDown() {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.button(Button::Right, Press).unwrap();
+}
+
+#[no_mangle]
+pub extern "C" fn MouseRightUp() {
+    let mut enigo = ENIGO_RELEASE_ON_DROP
+        .lock()
+        .expect("ENIGO_RELEASE_ON_DROP poisoned");
+    enigo.button(Button::Right, Release).unwrap();
+}
+
 
 #[repr(u32)]
 pub enum KeysE {
@@ -276,104 +416,4 @@ fn map_key(key: KeysE) -> Key {
         KeysE::PA1 => Key::PA1,
         KeysE::OEMClear => Key::OEMClear,
     }
-}
-
-fn get_enigo(release_keys: bool) -> Enigo {
-    let mut settings = Settings::default();
-    settings.release_keys_when_dropped = release_keys;
-    Enigo::new(&settings).unwrap()
-}
-
-#[no_mangle]
-pub extern "C" fn KeyPress(key: KeysE) {
-    let mut enigo = get_enigo(true);
-    enigo.key(map_key(key), Click).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn KeyDown(key: KeysE) {
-    let mut enigo = get_enigo(false);
-    enigo.key(map_key(key), Press).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn KeyUp(key: KeysE) {
-    let mut enigo = get_enigo(true);
-    enigo.key(map_key(key), Release).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn KeyPressWhile(key1: KeysE, key2: KeysE) {
-    let mut enigo = get_enigo(true);
-    let ke2 = map_key(key2);
-    enigo.key(ke2, Press).unwrap();
-    enigo.key(map_key(key1), Click).unwrap();
-    enigo.key(ke2, Release).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn KeyPressWhileTwo(key1: KeysE, key2: KeysE, key3: KeysE) {
-    let mut enigo = get_enigo(true);
-    let ke2 = map_key(key2);
-    let ke3 = map_key(key3);
-    enigo.key(ke3, Press).unwrap();
-    enigo.key(ke2, Press).unwrap();
-    enigo.key(map_key(key1), Click).unwrap();
-    enigo.key(ke3, Release).unwrap();
-    enigo.key(ke2, Release).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn KeyPressAlt(key1: KeysE) {
-    let mut enigo = get_enigo(true);
-    enigo.key(Key::Alt, Press).unwrap();
-    enigo.key(map_key(key1), Click).unwrap();
-    enigo.key(Key::Alt, Release).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseMove(x: i32, y: i32, coord_type: i32) {
-    let coordinate = match coord_type {
-        0 => Abs,
-        1 => Rel,
-        _ => panic!("Invalid coordinate type. Use 0 for Abs and 1 for Rel."),
-    };
-    let mut enigo = get_enigo(true);
-    enigo.move_mouse(x, y, coordinate).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseLeftClick() {
-    let mut enigo = get_enigo(true);
-    enigo.button(Button::Left, Click).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseLeftDown() {
-    let mut enigo = get_enigo(true);
-    enigo.button(Button::Left, Press).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseLeftUp() {
-    let mut enigo = get_enigo(true);
-    enigo.button(Button::Left, Release).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseRightClick() {
-    let mut enigo = get_enigo(true);
-    enigo.button(Button::Right, Click).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseRightDown() {
-    let mut enigo = get_enigo(true);
-    enigo.button(Button::Right, Press).unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn MouseRightUp() {
-    let mut enigo = get_enigo(true);
-    enigo.button(Button::Right, Release).unwrap();
 }
